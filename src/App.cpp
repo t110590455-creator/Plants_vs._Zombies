@@ -7,12 +7,17 @@
 
 void App::Start() {
     LOG_TRACE("Start");
+
+    m_GameScene = std::make_shared<GameScene>();
+
     m_CurrentState = State::UPDATE;
 }
 
 void App::Update() {
     
-    //TODO: do your things here and delete this line <3
+    if (m_GameScene != nullptr) {
+        m_GameScene->Update();
+    }
     
     /*
      * Do not touch the code below as they serve the purpose for

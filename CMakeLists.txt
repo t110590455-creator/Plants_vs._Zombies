@@ -35,6 +35,22 @@ add_executable(${PROJECT_NAME}
     ${SRC_DIR}/main.cpp
     ${SRC_FILES}
     ${HEADER_FILES}
+        include/GameBoard.hpp
+        src/GameBoard.cpp
+        include/GameScene.hpp
+        src/GameScene.cpp
+        include/Plant.hpp
+        src/Plant.cpp
+        include/Peashooter.hpp
+        src/Peashooter.cpp
+        include/Zombie.hpp
+        src/Zombie.cpp
+        include/BasicZombie.hpp
+        src/BasicZombie.cpp
+        include/Projectile.hpp
+        src/Projectile.cpp
+        include/Pea.hpp
+        src/Pea.cpp
 )
 
 if(MSVC)
