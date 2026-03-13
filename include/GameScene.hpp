@@ -17,12 +17,19 @@
 #include "Util/GameObject.hpp"
 #include "Util/Image.hpp"
 #include "Util/Renderer.hpp"
+#include "Util/Text.hpp"
 
 class GameScene {
 public:
     GameScene();
 
     void Update();
+
+private:
+    enum class State {
+        PLAYING,
+        GAME_OVER
+    };
 
 private:
     void HandleInput();
@@ -41,11 +48,21 @@ private:
     void RemoveDeadZombies();
     Plant* FindPlantInZombieFront(Zombie* zombie) const;
 
+    void CheckGameOver();
+    void EnterGameOver();
+
+    void UpdateSunText();
+
 private:
     GameBoard m_Board;
     Util::Renderer m_Renderer;
 
     std::shared_ptr<Util::GameObject> m_Background;
+    std::shared_ptr<Util::GameObject> m_GameOverText;
+    std::shared_ptr<Util::Text> m_SunText;
+    std::shared_ptr<Util::GameObject> m_SunTextObject; //因為 Renderer 是加 GameObject，不是直接加 Text。
+                                                        //所以建議補這個
+
     std::vector<std::shared_ptr<Plant>> m_Plants;
     std::vector<std::shared_ptr<Zombie>> m_Zombies;
     std::vector<std::shared_ptr<Projectile>> m_Projectiles;
@@ -54,6 +71,10 @@ private:
 
     float m_SpawnInterval = 3.0f;
     float m_LastSpawnTime = 0.0f;
+
+    State m_State = State::PLAYING;
+
+    int m_SunPoints = 200;
 };
 
 

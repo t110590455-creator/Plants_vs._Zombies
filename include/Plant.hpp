@@ -12,7 +12,12 @@
 
 class Plant : public Util::GameObject {
 public:
-    Plant(const std::string& imagePath, int row, int col, const glm::vec2& position, int hp);
+    Plant(const std::string& imagePath,
+          int row,
+          int col,
+          const glm::vec2& position,
+          int hp,
+          int cost);
     virtual ~Plant() = default;
 
     virtual void Update() {}
@@ -21,12 +26,14 @@ public:
     int GetRow() const { return m_Row; }
     int GetCol() const { return m_Col; }
     int GetHP() const { return m_HP; }
+    int GetCost() const { return m_Cost; }
     bool IsAlive() const { return m_Alive; }
 
 protected:
     int m_Row;
     int m_Col;
     int m_HP;
+    int m_Cost;
     bool m_Alive;
 };
 

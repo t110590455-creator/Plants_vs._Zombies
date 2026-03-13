@@ -13,23 +13,50 @@
 #include "Util/Logger.hpp"
 
 GameScene::GameScene() {
+    //背景
     auto backgroundImage = std::make_shared<Util::Image>(
         RESOURCE_DIR "/background.jpg"
     );
-
     m_Background = std::make_shared<Util::GameObject>(backgroundImage, 0.0f);
     m_Background->m_Transform.translation = {0.0f, 0.0f};
-
     m_Renderer.AddChild(m_Background);
+
+    // Gameover畫面
+    auto gameOverImage = std::make_shared<Util::Image>(
+        RESOURCE_DIR "/game_over.png"
+    );
+    m_GameOverText = std::make_shared<Util::GameObject>(gameOverImage, 100.0f);
+    m_GameOverText->m_Transform.translation = {0.0f, 0.0f};
+    m_GameOverText->SetVisible(false);
+    m_Renderer.AddChild(m_GameOverText);
+
+    // Sun Text
+    // 這段依你的 Text API 微調
+    m_SunText = std::make_shared<Util::Text>(
+        RESOURCE_DIR "/font.ttf",
+        32,
+        "Sun: 200",
+        Util::Color(0, 0, 0)
+    );
+    m_SunTextObject = std::make_shared<Util::GameObject>(m_SunText, 50.0f);
+    m_SunTextObject->m_Transform.translation = {-460.0f, 250.0f};
+    m_Renderer.AddChild(m_SunTextObject);
 
     m_LastSpawnTime = Util::Time::GetElapsedTimeMs() / 1000.0f;
 }
 
 void GameScene::Update() {
+    if (m_State == State::GAME_OVER) {
+        m_Renderer.Update();
+        return;
+    }
+
     HandleInput();
 
     for (auto& plant : m_Plants) {
-        plant->Update();
+        if (plant->IsAlive()) {
+            plant->Update();
+        }
     }
 
     TrySpawnZombie();
@@ -44,6 +71,8 @@ void GameScene::Update() {
     RemoveDeadProjectiles();
     RemoveDeadPlants();
     RemoveDeadZombies();
+
+    CheckGameOver();
 
     m_Renderer.Update();
 }
@@ -84,6 +113,14 @@ void GameScene::TryPlantAtMousePosition() {
 
     // 建立植物物件
     auto plant = std::make_shared<Peashooter>(row, col, cellCenter);
+
+    if (m_SunPoints < plant->GetCost()) {
+        LOG_DEBUG("Not enough sun => current: {}, need: {}", m_SunPoints, plant->GetCost());
+        return;
+    }
+
+    m_SunPoints -= plant->GetCost();
+    UpdateSunText();
 
     m_Plants.push_back(plant); // 存入一個 std::vector 或清單，方便後續統一管理（例如讓所有植物一起攻擊）。
     m_Board.PlacePlant(plant.get(), row, col); // m_Board：在棋盤陣列中標記該位置已有植物。
@@ -327,4 +364,33 @@ void GameScene::RemoveDeadZombies() {
         ),
         m_Zombies.end()
     );
+}
+
+void GameScene::CheckGameOver() {
+    for (const auto& zombie : m_Zombies) {
+        if (!zombie->IsAlive()) {
+            continue;
+        }
+
+        if (zombie->m_Transform.translation.x <= -460.0f) { // 代表殭屍走到畫面左邊某條線時判定失敗。
+            EnterGameOver();                                //這個值你可能之後要依背景圖微調。
+            return;
+        }
+        LOG_DEBUG("Zombie x = {}", zombie->m_Transform.translation.x);
+    }
+
+}
+
+void GameScene::EnterGameOver() {
+    m_State = State::GAME_OVER;
+    m_GameOverText->SetVisible(true);
+
+    LOG_DEBUG("GAME OVER");
+}
+
+// 如果你的 Util::Text 支援改字串，就加入這個函式。
+void GameScene::UpdateSunText() {
+    if (m_SunText != nullptr) {
+        m_SunText->SetText("Sun: " + std::to_string(m_SunPoints));
+    }
 }
