@@ -51,6 +51,10 @@ add_executable(${PROJECT_NAME}
         src/Projectile.cpp
         include/Pea.hpp
         src/Pea.cpp
+        include/Sunflower.hpp
+        src/Sunflower.cpp
+        include/Sun.hpp
+        src/Sun.cpp
 )
 
 if(MSVC)

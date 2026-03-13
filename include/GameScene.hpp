@@ -8,12 +8,18 @@
 #include "pch.hpp"
 
 #include "GameBoard.hpp"
-#include "BasicZombie.hpp"
-#include "Pea.hpp"
-#include "Peashooter.hpp"
-#include "Plant.hpp"
+
 #include "Projectile.hpp"
+#include "Pea.hpp"
+#include "Sun.hpp"
+
+#include "Plant.hpp"
+#include "Peashooter.hpp"
+#include "Sunflower.hpp"
+
+#include "BasicZombie.hpp"
 #include "Zombie.hpp"
+
 #include "Util/GameObject.hpp"
 #include "Util/Image.hpp"
 #include "Util/Renderer.hpp"
@@ -22,18 +28,26 @@
 class GameScene {
 public:
     GameScene();
-
     void Update();
 
 private:
+    // 遊戲狀態
     enum class State {
         PLAYING,
         GAME_OVER
     };
 
+    // 植物種類
+    enum class PlantType {
+        PEASHOOTER,
+        SUNFLOWER
+    };
+
 private:
     void HandleInput();
     void TryPlantAtMousePosition();
+    bool TryCollectSunAtMousePosition();
+
     void UpdateZombies();
     void TrySpawnZombie();
 
@@ -53,6 +67,9 @@ private:
 
     void UpdateSunText();
 
+    void UpdateSunflowers();
+    void RemoveDeadSuns();
+
 private:
     GameBoard m_Board;
     Util::Renderer m_Renderer;
@@ -66,6 +83,7 @@ private:
     std::vector<std::shared_ptr<Plant>> m_Plants;
     std::vector<std::shared_ptr<Zombie>> m_Zombies;
     std::vector<std::shared_ptr<Projectile>> m_Projectiles;
+    std::vector<std::shared_ptr<Sun>> m_Suns;
 
     bool m_WasMousePressed = false;
 
@@ -73,8 +91,9 @@ private:
     float m_LastSpawnTime = 0.0f;
 
     State m_State = State::PLAYING;
+    PlantType m_SelectedPlantType = PlantType::PEASHOOTER; // 選擇種植植物種類
 
-    int m_SunPoints = 200;
+    int m_SunPoints = 200; // 玩家初始Sun數量
 };
 
 

@@ -59,6 +59,8 @@ void GameScene::Update() {
         }
     }
 
+    UpdateSunflowers();
+
     TrySpawnZombie();
 
     UpdateZombiePlantInteractions();
@@ -71,6 +73,7 @@ void GameScene::Update() {
     RemoveDeadProjectiles();
     RemoveDeadPlants();
     RemoveDeadZombies();
+    RemoveDeadSuns();
 
     CheckGameOver();
 
@@ -78,13 +81,24 @@ void GameScene::Update() {
 }
 
 void GameScene::HandleInput() {
+    // 選擇植物 目前用NUM_*來決定種類，之後改成卡片UI
+    if (Util::Input::IsKeyDown(Util::Keycode::NUM_1)) {
+        m_SelectedPlantType = PlantType::PEASHOOTER;
+    }
+
+    if (Util::Input::IsKeyDown(Util::Keycode::NUM_2)) {
+        m_SelectedPlantType = PlantType::SUNFLOWER;
+    }
     // 防止連續觸發：利用 m_WasMousePressed 變數來記錄上一幀的狀態。
     // 這能確保玩家按住滑鼠時，只會觸發一次種植動作，而不是每秒噴出 60 顆植物。
     const bool isMousePressed = Util::Input::IsKeyDown(Util::Keycode::MOUSE_LB);
 
     if (isMousePressed && !m_WasMousePressed) {
+        // 優先收集Sun
+        if (!TryCollectSunAtMousePosition()) {
         // 呼叫種植邏輯：當偵測到滑鼠左鍵按下，且上一幀沒按時，執行
-        TryPlantAtMousePosition();
+            TryPlantAtMousePosition();
+        }
     }
 
     m_WasMousePressed = isMousePressed;
@@ -111,9 +125,21 @@ void GameScene::TryPlantAtMousePosition() {
     // 取得格子的中心點
     glm::vec2 cellCenter = m_Board.GetCellCenter(row, col);
 
-    // 建立植物物件
-    auto plant = std::make_shared<Peashooter>(row, col, cellCenter);
 
+    // 建立植物物件
+    std::shared_ptr<Plant> plant = nullptr;
+
+    if (m_SelectedPlantType == PlantType::PEASHOOTER) {
+        plant = std::make_shared<Peashooter>(row, col, cellCenter);
+    } else if (m_SelectedPlantType == PlantType::SUNFLOWER) {
+        plant = std::make_shared<Sunflower>(row, col, cellCenter);
+    }
+
+    if (plant == nullptr) {
+        return;
+    }
+
+    // 檢查Cost是否足夠種植目前所選植物
     if (m_SunPoints < plant->GetCost()) {
         LOG_DEBUG("Not enough sun => current: {}, need: {}", m_SunPoints, plant->GetCost());
         return;
@@ -393,4 +419,69 @@ void GameScene::UpdateSunText() {
     if (m_SunText != nullptr) {
         m_SunText->SetText("Sun: " + std::to_string(m_SunPoints));
     }
+}
+
+bool GameScene::TryCollectSunAtMousePosition() {
+    const glm::vec2 mousePos = Util::Input::GetCursorPosition();
+
+    for (auto& sun : m_Suns) {
+        if (!sun->IsAlive()) {
+            continue;
+        }
+
+        if (sun->ContainsPoint(mousePos)) {
+            m_SunPoints += sun->GetValue();
+            sun->Collect();
+            sun->SetVisible(false);
+            UpdateSunText();
+
+            LOG_DEBUG("Sun collected => +{}, current sun: {}", sun->GetValue(), m_SunPoints);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void GameScene::UpdateSunflowers() {
+    const float currentTime = Util::Time::GetElapsedTimeMs() / 1000.0f;
+
+    for (auto& plantBase : m_Plants) {
+        auto sunflower = std::dynamic_pointer_cast<Sunflower>(plantBase);
+        if (!sunflower) {
+            continue;
+        }
+
+        if (!sunflower->IsAlive()) {
+            continue;
+        }
+
+        if (!sunflower->CanGenerateSun(currentTime)) {
+            continue;
+        }
+
+        glm::vec2 sunPos = sunflower->m_Transform.translation;
+        sunPos.y -= 20.0f;
+
+        auto sun = std::make_shared<Sun>(sunPos, 25);
+        m_Suns.push_back(sun);
+        m_Renderer.AddChild(sun);
+
+        sunflower->RecordGenerateTime(currentTime);
+
+        LOG_DEBUG("Sun generated => row: {}, col: {}", sunflower->GetRow(), sunflower->GetCol());
+    }
+}
+
+void GameScene::RemoveDeadSuns() {
+    m_Suns.erase(
+        std::remove_if(
+            m_Suns.begin(),
+            m_Suns.end(),
+            [](const std::shared_ptr<Sun>& sun) {
+                return !sun->IsAlive();
+            }
+        ),
+        m_Suns.end()
+    );
 }
