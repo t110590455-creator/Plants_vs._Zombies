@@ -14,8 +14,8 @@ SeedCard::SeedCard(const std::string& imagePath,
       m_Selected(false),
       m_Cooldown(cooldown),
       m_LastUsedTime(-999.0f),
-      m_Width(65.0f),
-      m_Height(90.0f) {
+      m_Width(52.0f),
+      m_Height(73.0f) {
     m_Transform.translation = position;
 }
 

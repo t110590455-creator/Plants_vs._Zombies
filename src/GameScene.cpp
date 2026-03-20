@@ -21,6 +21,14 @@ GameScene::GameScene() {
     m_Background->m_Transform.translation = {0.0f, 0.0f};
     m_Renderer.AddChild(m_Background);
 
+    auto chooserbackgroundImage = std::make_shared<Util::Image>(
+        RESOURCE_DIR "/ChooserBackground.png"
+    );
+    m_ChooserBackground = std::make_shared<Util::GameObject>(chooserbackgroundImage, 1.0f);
+    m_ChooserBackground->m_Transform.translation = {-300.0f, 260.0f};
+    m_Renderer.AddChild(m_ChooserBackground);
+
+
     // Gameover畫面
     auto gameOverImage = std::make_shared<Util::Image>(
         RESOURCE_DIR "/game_over.png"
@@ -34,12 +42,12 @@ GameScene::GameScene() {
     // 這段依你的 Text API 微調
     m_SunText = std::make_shared<Util::Text>(
         RESOURCE_DIR "/font.ttf",
-        32,
-        "Sun: 200",
+        20,
+        "200",
         Util::Color(0, 0, 0)
     );
     m_SunTextObject = std::make_shared<Util::GameObject>(m_SunText, 50.0f);
-    m_SunTextObject->m_Transform.translation = {-460.0f, 250.0f};
+    m_SunTextObject->m_Transform.translation = {-510.0f, 230.0f};
     m_Renderer.AddChild(m_SunTextObject);
 
     // 卡片UI
@@ -48,7 +56,7 @@ GameScene::GameScene() {
         PlantType::PEASHOOTER,
         100,
         5.0f,
-        glm::vec2(-580.0f, 250.0f)
+        glm::vec2(-455.0f, 262.0f)
     );
 
     auto sunflowerCard = std::make_shared<SeedCard>(
@@ -56,7 +64,7 @@ GameScene::GameScene() {
         PlantType::SUNFLOWER,
         50,
         5.0f,
-        glm::vec2(-580.0f, 100.0f)
+        glm::vec2(-400.0f, 262.0f)
     );
 
     m_ShovelButton = std::make_shared<ShovelButton>(
@@ -478,7 +486,7 @@ void GameScene::EnterGameOver() {
 // 如果你的 Util::Text 支援改字串，就加入這個函式。
 void GameScene::UpdateSunText() {
     if (m_SunText != nullptr) {
-        m_SunText->SetText("Sun: " + std::to_string(m_SunPoints));
+        m_SunText->SetText(std::to_string(m_SunPoints));
     }
 }
 

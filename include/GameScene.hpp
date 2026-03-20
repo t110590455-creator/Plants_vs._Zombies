@@ -95,6 +95,7 @@ private:
     Util::Renderer m_Renderer;
 
     std::shared_ptr<Util::GameObject> m_Background;
+    std::shared_ptr<Util::GameObject> m_ChooserBackground;
     std::shared_ptr<Util::GameObject> m_GameOverText;
     std::shared_ptr<Util::Text> m_SunText;
     std::shared_ptr<Util::GameObject> m_SunTextObject; //因為 Renderer 是加 GameObject，不是直接加 Text。所以建議補這個
