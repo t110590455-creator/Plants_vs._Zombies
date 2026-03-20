@@ -68,7 +68,7 @@ GameScene::GameScene() {
     );
 
     m_ShovelButton = std::make_shared<ShovelButton>(
-    RESOURCE_DIR "/shovel.png",
+    RESOURCE_DIR "/shovel2.png",
     glm::vec2(-580.0f, -100.0f)
     );
 
