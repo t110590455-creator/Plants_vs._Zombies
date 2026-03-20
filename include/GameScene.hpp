@@ -11,6 +11,7 @@
 #include "SeedCard.hpp"
 #include "ShovelButton.hpp"
 #include "LawnMower.hpp"
+#include "LevelData.hpp"
 
 #include "Projectile.hpp"
 #include "Pea.hpp"
@@ -22,6 +23,8 @@
 
 #include "BasicZombie.hpp"
 #include "Zombie.hpp"
+#include "ConeheadZombie.hpp"
+
 
 #include "Util/GameObject.hpp"
 #include "Util/Image.hpp"
@@ -90,7 +93,26 @@ private:
     void CheckLawnMowerZombieCollisions();
     void RemoveDeadLawnMowers();
 
+    // Wave
+    void InitLevelWaves();
+    void UpdateLevelFlow();
+    void SpawnZombieFromEvent(SpawnEvent& event);
+    std::shared_ptr<Zombie> CreateZombieByType(ZombieType type, int row, const glm::vec2& position);
+
+    void UpdateSkySunSpawning();
+    void UpdateSuns();
+    bool AreAllWavesFinished() const;
+    bool AreAllZombiesCleared() const;
+    void EnterVictory();
+
 private:
+    enum class LevelState {
+        PREPARE,
+        NORMAL,
+        FINAL,
+        VICTORY
+    };
+
     GameBoard m_Board;
     Util::Renderer m_Renderer;
 
@@ -107,6 +129,20 @@ private:
     std::vector<std::shared_ptr<Projectile>> m_Projectiles;
     std::vector<std::shared_ptr<Sun>> m_Suns;
     std::vector<std::shared_ptr<SeedCard>> m_SeedCards;
+
+    // Wave
+    std::shared_ptr<Util::GameObject> m_VictoryText;
+
+    std::vector<Wave> m_Waves;
+
+    LevelState m_LevelState = LevelState::PREPARE;
+
+    float m_LevelStartTime = 0.0f;
+    float m_PrepareDuration = 15.0f;
+
+    float m_LastSkySunSpawnTime = 0.0f;
+    float m_NextSkySunInterval = 10.0f;
+    //
 
 
     bool m_WasMousePressed = false;

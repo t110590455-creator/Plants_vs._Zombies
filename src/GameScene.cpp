@@ -85,10 +85,34 @@ GameScene::GameScene() {
     CreateLawnMowers();
 
     m_LastSpawnTime = Util::Time::GetElapsedTimeMs() / 1000.0f;
+
+    // 初始化關卡
+    m_LevelStartTime = Util::Time::GetElapsedTimeMs() / 1000.0f;
+    m_LastSkySunSpawnTime = m_LevelStartTime;
+    m_NextSkySunInterval = 9.0f;
+    InitLevelWaves();
+
+    //
+    auto victoryImage = std::make_shared<Util::Image>(
+    RESOURCE_DIR "/game_victory.png"
+    );
+
+    m_VictoryText = std::make_shared<Util::GameObject>(victoryImage, 100.0f);
+    m_VictoryText->m_Transform.translation = {0.0f, 0.0f};
+    m_VictoryText->SetVisible(false);
+
+    m_Renderer.AddChild(m_VictoryText);
 }
 
 void GameScene::Update() {
     if (m_State == State::GAME_OVER) {
+        m_Renderer.Update();
+        return;
+    }
+
+    if (m_LevelState == LevelState::VICTORY) {
+        UpdateSuns();
+        RemoveDeadSuns();
         m_Renderer.Update();
         return;
     }
@@ -103,9 +127,13 @@ void GameScene::Update() {
     }
 
     UpdateSunflowers();
+    UpdateSkySunSpawning();
+    UpdateSuns();
 
     // 生成殭屍
-    TrySpawnZombie();
+    //TrySpawnZombie();
+
+    UpdateLevelFlow();
 
     CheckLawnMowerActivation();
     UpdateLawnMowers();
@@ -462,6 +490,9 @@ void GameScene::RemoveDeadZombies() {
 }
 
 void GameScene::CheckGameOver() {
+    if (m_LevelState == LevelState::VICTORY) {
+        return;
+    }
     for (const auto& zombie : m_Zombies) {
         if (!zombie->IsAlive()) {
             continue;
@@ -785,4 +816,168 @@ void GameScene::RemoveDeadLawnMowers() {
         ),
         m_LawnMowers.end()
     );
+}
+
+
+// wave
+void GameScene::InitLevelWaves() {
+    m_Waves.clear();
+
+    Wave normalWave1;
+    normalWave1.isFinalWave = false;
+    normalWave1.events = {
+        {ZombieType::BASIC,    1, 16.0f, false},
+        {ZombieType::BASIC,    3, 20.0f, false},
+        {ZombieType::BASIC,    0, 24.0f, false},
+        {ZombieType::BASIC,    4, 28.0f, false},
+        {ZombieType::CONEHEAD, 2, 32.0f, false},
+    };
+
+    Wave normalWave2;
+    normalWave2.isFinalWave = false;
+    normalWave2.events = {
+        {ZombieType::BASIC,    2, 36.0f, false},
+        {ZombieType::BASIC,    1, 39.0f, false},
+        {ZombieType::CONEHEAD, 4, 42.0f, false},
+        {ZombieType::BASIC,    0, 45.0f, false},
+        {ZombieType::BASIC,    3, 48.0f, false},
+    };
+
+    Wave finalWave;
+    finalWave.isFinalWave = true;
+    finalWave.events = {
+        {ZombieType::CONEHEAD, 2, 55.0f, false},
+        {ZombieType::BASIC,    1, 56.0f, false},
+        {ZombieType::BASIC,    3, 57.0f, false},
+        {ZombieType::CONEHEAD, 0, 58.0f, false},
+        {ZombieType::BASIC,    4, 59.0f, false},
+    };
+
+    m_Waves.push_back(normalWave1);
+    m_Waves.push_back(normalWave2);
+    m_Waves.push_back(finalWave);
+}
+
+std::shared_ptr<Zombie> GameScene::CreateZombieByType(ZombieType type, int row, const glm::vec2& position) {
+    switch (type) {
+        case ZombieType::BASIC:
+            return std::make_shared<BasicZombie>(row, position);
+        case ZombieType::CONEHEAD:
+            return std::make_shared<ConeheadZombie>(row, position);
+        default:
+            return nullptr;
+    }
+}
+
+void GameScene::SpawnZombieFromEvent(SpawnEvent& event) {
+    glm::vec2 spawnPos = m_Board.GetCellCenter(event.row, GameBoard::COLS - 1);
+    spawnPos.x += 300.0f;
+
+    auto zombie = CreateZombieByType(event.type, event.row, spawnPos);
+    if (zombie == nullptr) {
+        return;
+    }
+
+    m_Zombies.push_back(zombie);
+    m_Renderer.AddChild(zombie);
+
+    event.spawned = true;
+
+    LOG_DEBUG("Wave zombie spawned => row: {}", event.row);
+}
+
+void GameScene::UpdateLevelFlow() {
+    const float currentTime = Util::Time::GetElapsedTimeMs() / 1000.0f;
+    const float elapsed = currentTime - m_LevelStartTime;
+
+    if (m_LevelState == LevelState::PREPARE) {
+        if (elapsed >= m_PrepareDuration) {
+            m_LevelState = LevelState::NORMAL;
+            LOG_DEBUG("Level state => NORMAL");
+        } else {
+            return;
+        }
+    }
+
+    for (auto& wave : m_Waves) {
+        for (auto& event : wave.events) {
+            if (!event.spawned && elapsed >= event.spawnTime) {
+                SpawnZombieFromEvent(event);
+
+                if (wave.isFinalWave && m_LevelState != LevelState::FINAL) {
+                    m_LevelState = LevelState::FINAL;
+                    LOG_DEBUG("Level state => FINAL");
+                }
+            }
+        }
+    }
+
+    if (AreAllWavesFinished() && AreAllZombiesCleared()) {
+        EnterVictory();
+    }
+}
+
+bool GameScene::AreAllWavesFinished() const {
+    for (const auto& wave : m_Waves) {
+        for (const auto& event : wave.events) {
+            if (!event.spawned) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool GameScene::AreAllZombiesCleared() const {
+    for (const auto& zombie : m_Zombies) {
+        if (zombie->IsAlive()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+void GameScene::EnterVictory() {
+    if (m_LevelState == LevelState::VICTORY) {
+        return;
+    }
+
+    m_LevelState = LevelState::VICTORY;
+    if (m_VictoryText != nullptr) {
+        m_VictoryText->SetVisible(true);
+    }
+
+    LOG_DEBUG("VICTORY");
+}
+
+void GameScene::UpdateSkySunSpawning() {
+    const float currentTime = Util::Time::GetElapsedTimeMs() / 1000.0f;
+
+    if (currentTime - m_LastSkySunSpawnTime < m_NextSkySunInterval) {
+        return;
+    }
+
+    m_LastSkySunSpawnTime = currentTime;
+    m_NextSkySunInterval = 8.0f + static_cast<float>(rand() % 5);
+
+    float x = 260.0f + static_cast<float>(rand() % 700);
+    float targetY = 120.0f + static_cast<float>(rand() % 350);
+
+    glm::vec2 startPos{x, -50.0f};
+    glm::vec2 targetPos{x, targetY};
+
+    auto sun = std::make_shared<Sun>(startPos, targetPos, 25);
+    m_Suns.push_back(sun);
+    m_Renderer.AddChild(sun);
+
+    LOG_DEBUG("Sky sun spawned");
+}
+
+void GameScene::UpdateSuns() {
+    for (auto& sun : m_Suns) {
+        if (sun->IsAlive()) {
+            sun->Update();
+        }
+    }
 }
