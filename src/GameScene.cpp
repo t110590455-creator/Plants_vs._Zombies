@@ -74,6 +74,8 @@ GameScene::GameScene() {
     m_Renderer.AddChild(m_ShovelButton);
     UpdateShovelVisual();
 
+    CreateLawnMowers();
+
     m_LastSpawnTime = Util::Time::GetElapsedTimeMs() / 1000.0f;
 }
 
@@ -97,17 +99,22 @@ void GameScene::Update() {
     // 生成殭屍
     TrySpawnZombie();
 
+    CheckLawnMowerActivation();
+    UpdateLawnMowers();
+
     UpdateZombiePlantInteractions();
     UpdateZombies();
 
     UpdatePeashooters();
     UpdateProjectiles();
     CheckProjectileZombieCollisions();
+    CheckLawnMowerZombieCollisions();
 
     RemoveDeadProjectiles();
     RemoveDeadPlants();
     RemoveDeadZombies();
     RemoveDeadSuns();
+    RemoveDeadLawnMowers();
 
     CheckGameOver();
     UpdateSeedCardUsabilityVisual();
@@ -672,3 +679,102 @@ void GameScene::TryRemovePlantAtMousePosition() {
     LOG_DEBUG("Plant removed => row: {} col: {}", row, col);
 }
 
+
+// 割草機
+void GameScene::CreateLawnMowers() {
+    for (int row = 0; row < GameBoard::ROWS; ++row) {
+        glm::vec2 pos = m_Board.GetCellCenter(row, 0);
+        pos.x = -460.0f;
+
+        auto mower = std::make_shared<LawnMower>(row, pos);
+        m_LawnMowers.push_back(mower);
+        m_Renderer.AddChild(mower);
+    }
+}
+
+void GameScene::UpdateLawnMowers() {
+    for (auto& mower : m_LawnMowers) {
+        if (!mower->IsAlive()) {
+            continue;
+        }
+
+        mower->Update();
+    }
+}
+
+
+void GameScene::CheckLawnMowerActivation() {
+    for (auto& mower : m_LawnMowers) {
+        if (!mower->IsAlive() || mower->IsActivated()) {
+            continue;
+        }
+
+        for (auto& zombie : m_Zombies) {
+            if (!zombie->IsAlive()) {
+                continue;
+            }
+
+            if (zombie->GetRow() != mower->GetRow()) {
+                continue;
+            }
+
+            const float dx = std::abs(zombie->m_Transform.translation.x - mower->m_Transform.translation.x);
+
+            if (dx < 60.0f) {
+                mower->Activate();
+                LOG_DEBUG("Lawn mower activated => row: {}", mower->GetRow());
+                break;
+            }
+        }
+    }
+}
+
+void GameScene::CheckLawnMowerZombieCollisions() {
+    for (auto& mower : m_LawnMowers) {
+        if (!mower->IsAlive() || !mower->IsActivated()) {
+            continue;
+        }
+
+        for (auto& zombie : m_Zombies) {
+            if (!zombie->IsAlive()) {
+                continue;
+            }
+
+            if (zombie->GetRow() != mower->GetRow()) {
+                continue;
+            }
+
+            const float dx = std::abs(zombie->m_Transform.translation.x - mower->m_Transform.translation.x);
+            const float dy = std::abs(zombie->m_Transform.translation.y - mower->m_Transform.translation.y);
+
+            if (dx < 55.0f && dy < 45.0f) {
+                zombie->TakeDamage(99999);
+                LOG_DEBUG("Zombie crushed by lawn mower => row: {}", zombie->GetRow());
+            }
+        }
+    }
+}
+
+void GameScene::RemoveDeadLawnMowers() {
+    for (auto& mower : m_LawnMowers) {
+        if (!mower->IsAlive()) {
+            continue;
+        }
+
+        if (mower->IsActivated() && mower->m_Transform.translation.x > 2000.0f) {
+            mower->SetVisible(false);
+            mower->Destroy();
+        }
+    }
+
+    m_LawnMowers.erase(
+        std::remove_if(
+            m_LawnMowers.begin(),
+            m_LawnMowers.end(),
+            [](const std::shared_ptr<LawnMower>& mower) {
+                return !mower->IsAlive();
+            }
+        ),
+        m_LawnMowers.end()
+    );
+}

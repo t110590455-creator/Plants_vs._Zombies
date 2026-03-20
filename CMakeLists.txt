@@ -59,6 +59,8 @@ add_executable(${PROJECT_NAME}
         src/SeedCard.cpp
         include/ShovelButton.hpp
         src/ShovelButton.cpp
+        include/LawnMower.hpp
+        src/LawnMower.cpp
 )
 
 if(MSVC)

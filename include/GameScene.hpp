@@ -10,6 +10,7 @@
 #include "GameBoard.hpp"
 #include "SeedCard.hpp"
 #include "ShovelButton.hpp"
+#include "LawnMower.hpp"
 
 #include "Projectile.hpp"
 #include "Pea.hpp"
@@ -82,6 +83,13 @@ private:
     void UpdateShovelVisual();
     void TryRemovePlantAtMousePosition();
 
+    // 割草機
+    void CreateLawnMowers();
+    void UpdateLawnMowers();
+    void CheckLawnMowerActivation();
+    void CheckLawnMowerZombieCollisions();
+    void RemoveDeadLawnMowers();
+
 private:
     GameBoard m_Board;
     Util::Renderer m_Renderer;
@@ -91,6 +99,7 @@ private:
     std::shared_ptr<Util::Text> m_SunText;
     std::shared_ptr<Util::GameObject> m_SunTextObject; //因為 Renderer 是加 GameObject，不是直接加 Text。所以建議補這個
     std::shared_ptr<ShovelButton> m_ShovelButton;
+    std::vector<std::shared_ptr<LawnMower>> m_LawnMowers;
 
     std::vector<std::shared_ptr<Plant>> m_Plants;
     std::vector<std::shared_ptr<Zombie>> m_Zombies;
