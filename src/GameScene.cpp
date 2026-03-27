@@ -69,7 +69,7 @@ GameScene::GameScene() {
 
     // CherryBomb 的卡片素材目前沒有獨立 card 檔時，先暫用 CherryBomb_0.png 代表
     auto cherryBombCard = std::make_shared<SeedCard>(
-        RESOURCE_DIR "/CherryBomb_card.jpeg",
+        RESOURCE_DIR "/card_cherrybomb.png",
         PlantType::CHERRYBOMB,
         150,
         5.0f,
