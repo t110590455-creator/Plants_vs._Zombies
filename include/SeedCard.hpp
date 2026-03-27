@@ -13,7 +13,8 @@
 // 植物種類
 enum class PlantType {
     PEASHOOTER,
-    SUNFLOWER
+    SUNFLOWER,
+    CHERRYBOMB
 };
 
 class SeedCard : public Util::GameObject {
@@ -38,6 +39,9 @@ public:
 
     float GetRemainingCooldown(float currentTime) const;
 
+    // 將卡片顯示縮放乘上一個因子（例如 0.9 / 1.1）
+    void SetVisualScaleFactor(float factor);
+
 private:
     PlantType m_PlantType;
     int m_Cost;
@@ -48,6 +52,8 @@ private:
 
     float m_Width;
     float m_Height;
+
+    glm::vec2 m_BaseScale {1.0f, 1.0f};
 };
 
 #endif //SEEDCARD_HPP

@@ -67,6 +67,15 @@ GameScene::GameScene() {
         glm::vec2(-400.0f, 262.0f)
     );
 
+    // CherryBomb 的卡片素材目前沒有獨立 card 檔時，先暫用 CherryBomb_0.png 代表
+    auto cherryBombCard = std::make_shared<SeedCard>(
+        RESOURCE_DIR "/CherryBomb_card.jpeg",
+        PlantType::CHERRYBOMB,
+        150,
+        5.0f,
+        glm::vec2(-345.0f, 262.0f)
+    );
+
     m_ShovelButton = std::make_shared<ShovelButton>(
     RESOURCE_DIR "/shovel2.png",
     glm::vec2(50.0f, 262.0f)
@@ -74,9 +83,11 @@ GameScene::GameScene() {
 
     m_SeedCards.push_back(peashooterCard);
     m_SeedCards.push_back(sunflowerCard);
+    m_SeedCards.push_back(cherryBombCard);
 
     m_Renderer.AddChild(peashooterCard);
     m_Renderer.AddChild(sunflowerCard);
+    m_Renderer.AddChild(cherryBombCard);
     UpdateSeedCardSelectionVisual();
 
     m_Renderer.AddChild(m_ShovelButton);
@@ -101,6 +112,9 @@ void GameScene::Update() {
             plant->Update();
         }
     }
+
+    // CherryBomb 爆炸結算（放在殭屍 Update 之前，確保命中當下先消失）
+    TriggerCherryBombDamage();
 
     UpdateSunflowers();
 
@@ -130,6 +144,86 @@ void GameScene::Update() {
     m_Renderer.Update();
 }
 
+void GameScene::TriggerCherryBombDamage() {
+    // 殭屍的「先消失」：目前用 SetVisible(false) + 直接殺死殭屍實現，
+    // 之後要換成燒焦動畫時，可以在命中這裡改成播放動畫並延後移除。
+    constexpr int kCherryBombDamage = 99999;
+
+    for (auto& plantBase : m_Plants) {
+        auto cherry = std::dynamic_pointer_cast<CherryBomb>(plantBase);
+        if (!cherry || !cherry->IsAlive() || !cherry->ShouldTriggerDamage()) {
+            continue;
+        }
+
+        const int centerRow = cherry->GetRow();
+        const int centerCol = cherry->GetCol();
+
+        // 推估棋盤格子的實際大小（用相鄰格中心點差值）
+        float cellWidth = 85.0f;
+        float cellHeight = 100.0f;
+        if (centerCol + 1 < GameBoard::COLS) {
+            cellWidth = m_Board.GetCellCenter(centerRow, centerCol + 1).x -
+                         m_Board.GetCellCenter(centerRow, centerCol).x;
+        } else if (centerCol - 1 >= 0) {
+            cellWidth = m_Board.GetCellCenter(centerRow, centerCol).x -
+                         m_Board.GetCellCenter(centerRow, centerCol - 1).x;
+        }
+
+        if (centerRow + 1 < GameBoard::ROWS) {
+            cellHeight = m_Board.GetCellCenter(centerRow + 1, centerCol).y -
+                          m_Board.GetCellCenter(centerRow, centerCol).y;
+        } else if (centerRow - 1 >= 0) {
+            cellHeight = m_Board.GetCellCenter(centerRow, centerCol).y -
+                          m_Board.GetCellCenter(centerRow - 1, centerCol).y;
+        }
+
+        bool anyHit = false;
+
+        for (auto& zombie : m_Zombies) {
+            if (!zombie->IsAlive()) {
+                continue;
+            }
+
+            const float zx = zombie->m_Transform.translation.x;
+            const float zy = zombie->m_Transform.translation.y;
+
+            bool inRange = false;
+            for (int dr = -1; dr <= 1 && !inRange; ++dr) {
+                for (int dc = -1; dc <= 1 && !inRange; ++dc) {
+                    const int r = centerRow + dr;
+                    const int c = centerCol + dc;
+                    if (r < 0 || r >= GameBoard::ROWS || c < 0 ||
+                        c >= GameBoard::COLS) {
+                        continue;
+                    }
+
+                    const glm::vec2 cellCenter = m_Board.GetCellCenter(r, c);
+                    const float halfW = cellWidth * 0.5f;
+                    const float halfH = cellHeight * 0.5f;
+
+                    if (std::abs(zx - cellCenter.x) <= halfW &&
+                        std::abs(zy - cellCenter.y) <= halfH) {
+                        inRange = true;
+                    }
+                }
+            }
+
+            if (inRange) {
+                anyHit = true;
+                zombie->SetVisible(false);
+                zombie->TakeDamage(kCherryBombDamage);
+            }
+        }
+
+        // 不管是否命中，爆炸都算結算完成
+        cherry->MarkAsExploded();
+        cherry->SetVisible(false);
+
+        // 這裡先留 anyHit，未來可用於播放命中特效/音效等
+        (void)anyHit;
+    }
+}
+
 void GameScene::HandleInput() {
     // 選擇植物 目前用NUM_*來決定種類，之後改成卡片UI
     if (Util::Input::IsKeyDown(Util::Keycode::NUM_1)) {
@@ -139,6 +233,11 @@ void GameScene::HandleInput() {
 
     if (Util::Input::IsKeyDown(Util::Keycode::NUM_2)) {
         m_SelectedPlantType = PlantType::SUNFLOWER;
+        UpdateSeedCardSelectionVisual();
+    }
+
+    if (Util::Input::IsKeyDown(Util::Keycode::NUM_3)) {
+        m_SelectedPlantType = PlantType::CHERRYBOMB;
         UpdateSeedCardSelectionVisual();
     }
     // 防止連續觸發：利用 m_WasMousePressed 變數來記錄上一幀的狀態。
@@ -189,6 +288,8 @@ void GameScene::TryPlantAtMousePosition() {
         plant = std::make_shared<Peashooter>(row, col, cellCenter);
     } else if (m_SelectedPlantType == PlantType::SUNFLOWER) {
         plant = std::make_shared<Sunflower>(row, col, cellCenter);
+    } else if (m_SelectedPlantType == PlantType::CHERRYBOMB) {
+        plant = std::make_shared<CherryBomb>(row, col, cellCenter);
     }
 
     const float currentTime = Util::Time::GetElapsedTimeMs() / 1000.0f;
@@ -577,6 +678,8 @@ bool GameScene::TrySelectSeedCardAtMousePosition() {
             LOG_DEBUG("Selected card => Peashooter");
         } else if (m_SelectedPlantType == PlantType::SUNFLOWER) {
             LOG_DEBUG("Selected card => Sunflower");
+        } else if (m_SelectedPlantType == PlantType::CHERRYBOMB) {
+            LOG_DEBUG("Selected card => CherryBomb");
         }
 
         return true;
@@ -610,11 +713,11 @@ void GameScene::UpdateSeedCardUsabilityVisual() {
         const bool selected = (card->GetPlantType() == m_SelectedPlantType);
 
         if (!usable) {
-            card->m_Transform.scale = {0.9f, 0.9f};
+            card->SetVisualScaleFactor(0.9f);
         } else if (selected) {
-            card->m_Transform.scale = {1.1f, 1.1f};
+            card->SetVisualScaleFactor(1.1f);
         } else {
-            card->m_Transform.scale = {1.0f, 1.0f};
+            card->SetVisualScaleFactor(1.0f);
         }
     }
 }

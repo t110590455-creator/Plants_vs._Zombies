@@ -19,6 +19,7 @@
 #include "Plant.hpp"
 #include "Peashooter.hpp"
 #include "Sunflower.hpp"
+#include "CherryBomb.hpp"
 
 #include "BasicZombie.hpp"
 #include "Zombie.hpp"
@@ -53,6 +54,9 @@ private:
 
     void UpdateZombies();
     void TrySpawnZombie();
+
+    // CherryBomb 爆炸結算：對九宮格內的殭屍造成傷害/消失
+    void TriggerCherryBombDamage();
 
     void UpdateProjectiles();
     void UpdatePeashooters();
